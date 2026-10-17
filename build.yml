@@ -1,0 +1,85 @@
+name: Build Mod
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    - name: Download Forge MDK
+      run: |
+        wget https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.2.0/forge-1.20.1-47.2.0-mdk.zip
+        unzip -q forge-1.20.1-47.2.0-mdk.zip -d .
+    - name: Setup Source Code
+      run: |
+        mkdir -p src/main/java/com/example/emeraldartistry
+        cp EmeraldArtistryMod.java src/main/java/com/example/emeraldartistry/
+    - name: Generate Resources
+      run: |
+        mkdir -p src/main/resources/META-INF
+        cat <<EOF > src/main/resources/META-INF/mods.toml
+        modLoader="javafml"
+        loaderVersion="[47,)"
+        license="MIT"
+        [[mods]]
+        modId="emeraldartistry"
+        version="1.0.0"
+        displayName="Emerald Artistry"
+        description='''绿宝石工艺'''
+        [[dependencies.emeraldartistry]]
+            modId="forge"
+            mandatory=true
+            versionRange="[47,)"
+            ordering="NONE"
+            side="BOTH"
+        [[dependencies.emeraldartistry]]
+            modId="minecraft"
+            mandatory=true
+            versionRange="[1.20.1,1.21)"
+            ordering="NONE"
+            side="BOTH"
+        EOF
+        mkdir -p src/main/resources/assets/emeraldartistry/lang
+        cat <<EOF > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
+        {
+          "item.emeraldartistry.emerald_greatsword": "翠玉巨剑",
+          "item.emeraldartistry.emerald_greatsword.tooltip.active": "§a右键：翠玉横斩",
+          "item.emeraldartistry.emerald_greatsword.tooltip.passive": "§2被动：生命共鸣"
+        }
+        EOF
+        mkdir -p src/main/resources/assets/emeraldartistry/models/item
+        cat <<EOF > src/main/resources/assets/emeraldartistry/models/item/emerald_greatsword.json
+        {
+          "parent": "minecraft:item/handheld",
+          "textures": { "layer0": "emeraldartistry:item/emerald_greatsword" }
+        }
+        EOF
+        mkdir -p src/main/resources/data/emeraldartistry/recipes
+        cat <<EOF > src/main/resources/data/emeraldartistry/recipes/emerald_greatsword.json
+        {
+          "type": "minecraft:crafting_shaped",
+          "pattern": [" E ", " E ", " S "],
+          "key": {
+            "E": { "item": "minecraft:emerald_block" },
+            "S": { "item": "minecraft:stick" }
+          },
+          "result": { "item": "emeraldartistry:emerald_greatsword", "count": 1 }
+        }
+        EOF
+        mkdir -p src/main/resources/assets/emeraldartistry/textures/item
+        wget -q -O src/main/resources/assets/emeraldartistry/textures/item/emerald_greatsword.png https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/emerald.png
+    - name: Build with Gradle
+      run: |
+        chmod +x gradlew
+        ./gradlew build
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: build/libs/*.jar
+        tag_name: v1.0.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
