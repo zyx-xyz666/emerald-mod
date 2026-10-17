@@ -76,15 +76,10 @@ jobs:
       run: |
         chmod +x gradlew
         ./gradlew build
-    - name: Upload Mod Jar
-      uses: actions/upload-artifact@v4
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
       with:
-        name: Emerald-Mod
-        path: build/libs/*.jar
-        - name: Create Release
-  uses: softprops/action-gh-release@v2
-  with:
-    files: build/libs/*.jar
-    tag_name: v1.0.0
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        files: build/libs/*.jar
+        tag_name: v1.0.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
