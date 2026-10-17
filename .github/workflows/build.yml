@@ -20,14 +20,8 @@ jobs:
       run: |
         mkdir -p src/main/java/com/example/emeraldartistry
         cp EmeraldArtistryMod.java src/main/java/com/example/emeraldartistry/
-    - name: Hardcore Generate Resources
+    - name: Generate Resources
       run: |
-        # 强行修改 gradle.properties 并更改版本号为 1.0.3
-        sed -i 's/examplemod/emeraldartistry/g' gradle.properties
-        sed -i 's/Example Mod/Emerald Artistry/g' gradle.properties
-        sed -i 's/mod_version=1.0.0/mod_version=1.0.3/g' gradle.properties
-        
-        # 暴力生成 mods.toml，彻底切断 Forge 自动替换的抽风可能
         mkdir -p src/main/resources/META-INF
         cat <<EOF > src/main/resources/META-INF/mods.toml
         modLoader="javafml"
@@ -51,8 +45,6 @@ jobs:
             ordering="NONE"
             side="BOTH"
         EOF
-        
-        # 生成其他所有资源文件
         mkdir -p src/main/resources/assets/emeraldartistry/lang
         cat <<EOF > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
         {
@@ -86,6 +78,37 @@ jobs:
       run: |
         chmod +x gradlew
         ./gradlew clean build
+    - name: FORCE FIX mods.toml in JAR
+      run: |
+        cd build/libs
+        unzip -q emeraldartistry-1.0.3.jar -d temp_jar
+        cat <<EOF > temp_jar/META-INF/mods.toml
+        modLoader="javafml"
+        loaderVersion="[47,)"
+        license="MIT"
+        [[mods]]
+        modId="emeraldartistry"
+        version="1.0.3"
+        displayName="Emerald Artistry"
+        description='''Emerald Craft'''
+        [[dependencies.emeraldartistry]]
+            modId="forge"
+            mandatory=true
+            versionRange="[47,)"
+            ordering="NONE"
+            side="BOTH"
+        [[dependencies.emeraldartistry]]
+            modId="minecraft"
+            mandatory=true
+            versionRange="[1.20.1,1.21)"
+            ordering="NONE"
+            side="BOTH"
+        EOF
+        rm emeraldartistry-1.0.3.jar
+        cd temp_jar
+        zip -r ../emeraldartistry-1.0.3.jar *
+        cd ..
+        rm -rf temp_jar
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
