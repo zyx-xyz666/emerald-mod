@@ -16,55 +16,49 @@ jobs:
       run: |
         wget https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.2.0/forge-1.20.1-47.2.0-mdk.zip
         unzip -q forge-1.20.1-47.2.0-mdk.zip -d .
-    - name: Setup Configuration and Code
+    - name: Setup Config and Code
       run: |
-        # 核心：直接覆盖它的 gradle.properties，让它从源头改名！
-        cat <<EOF > gradle.properties
-        org.gradle.jvmargs=-Xmx3G
-        org.gradle.daemon=false
-        org.gradle.parallel=true
-        org.gradle.caching=true
-        mod_id=emeraldartistry
-        mod_name=Emerald Artistry
-        mod_license=MIT
-        mod_version=1.0.3
-        mod_group_id=com.example.emeraldartistry
-        mod_authors=You
-        mod_description=Emerald Craft
-        EOF
+        # 1. 强行修改原有的 gradle.properties
+        sed -i 's/mod_id=examplemod/mod_id=emeraldartistry/g' gradle.properties
+        sed -i 's/mod_group_id=com.example.examplemod/mod_group_id=com.example.emeraldartistry/g' gradle.properties
+        sed -i 's/mod_version=1.0.0/mod_version=1.0.3/g' gradle.properties
+        sed -i 's/mod_name=Example Mod/mod_name=Emerald Artistry/g' gradle.properties
+        sed -i 's/Example Mod/Emerald Artistry/g' gradle.properties
         
-        # 放置你的 Java 代码
+        # 2. 放置代码
         mkdir -p src/main/java/com/example/emeraldartistry
         cp EmeraldArtistryMod.java src/main/java/com/example/emeraldartistry/
         
-        # 生成资源文件
+        # 3. 强行用 echo 写入 mods.toml（绝对不会有缩进问题）
+        mkdir -p src/main/resources/META-INF
+        echo 'modLoader="javafml"' > src/main/resources/META-INF/mods.toml
+        echo 'loaderVersion="[47,)"' >> src/main/resources/META-INF/mods.toml
+        echo 'license="MIT"' >> src/main/resources/META-INF/mods.toml
+        echo '[[mods]]' >> src/main/resources/META-INF/mods.toml
+        echo 'modId="emeraldartistry"' >> src/main/resources/META-INF/mods.toml
+        echo 'version="1.0.3"' >> src/main/resources/META-INF/mods.toml
+        echo 'displayName="Emerald Artistry"' >> src/main/resources/META-INF/mods.toml
+        echo 'description="Emerald Craft"' >> src/main/resources/META-INF/mods.toml
+        echo '[[dependencies.emeraldartistry]]' >> src/main/resources/META-INF/mods.toml
+        echo 'modId="forge"' >> src/main/resources/META-INF/mods.toml
+        echo 'mandatory=true' >> src/main/resources/META-INF/mods.toml
+        echo 'versionRange="[47,)"' >> src/main/resources/META-INF/mods.toml
+        echo 'ordering="NONE"' >> src/main/resources/META-INF/mods.toml
+        echo 'side="BOTH"' >> src/main/resources/META-INF/mods.toml
+        echo '[[dependencies.emeraldartistry]]' >> src/main/resources/META-INF/mods.toml
+        echo 'modId="minecraft"' >> src/main/resources/META-INF/mods.toml
+        echo 'mandatory=true' >> src/main/resources/META-INF/mods.toml
+        echo 'versionRange="[1.20.1,1.21)"' >> src/main/resources/META-INF/mods.toml
+        echo 'ordering="NONE"' >> src/main/resources/META-INF/mods.toml
+        echo 'side="BOTH"' >> src/main/resources/META-INF/mods.toml
+        
+        # 4. 写入其他资源
         mkdir -p src/main/resources/assets/emeraldartistry/lang
-        cat <<EOF > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
-        {
-          "item.emeraldartistry.emerald_greatsword": "翠玉巨剑",
-          "item.emeraldartistry.emerald_greatsword.tooltip.active": "§a右键：翠玉横斩",
-          "item.emeraldartistry.emerald_greatsword.tooltip.passive": "§2被动：生命共鸣"
-        }
-        EOF
+        echo '{"item.emeraldartistry.emerald_greatsword": "翠玉巨剑","item.emeraldartistry.emerald_greatsword.tooltip.active": "§a右键：翠玉横斩","item.emeraldartistry.emerald_greatsword.tooltip.passive": "§2被动：生命共鸣"}' > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
         mkdir -p src/main/resources/assets/emeraldartistry/models/item
-        cat <<EOF > src/main/resources/assets/emeraldartistry/models/item/emerald_greatsword.json
-        {
-          "parent": "minecraft:item/handheld",
-          "textures": { "layer0": "emeraldartistry:item/emerald_greatsword" }
-        }
-        EOF
+        echo '{"parent": "minecraft:item/handheld","textures": { "layer0": "emeraldartistry:item/emerald_greatsword" }}' > src/main/resources/assets/emeraldartistry/models/item/emerald_greatsword.json
         mkdir -p src/main/resources/data/emeraldartistry/recipes
-        cat <<EOF > src/main/resources/data/emeraldartistry/recipes/emerald_greatsword.json
-        {
-          "type": "minecraft:crafting_shaped",
-          "pattern": [" E ", " E ", " S "],
-          "key": {
-            "E": { "item": "minecraft:emerald_block" },
-            "S": { "item": "minecraft:stick" }
-          },
-          "result": { "item": "emeraldartistry:emerald_greatsword", "count": 1 }
-        }
-        EOF
+        echo '{"type": "minecraft:crafting_shaped","pattern": [" E ", " E ", " S "],"key": {"E": { "item": "minecraft:emerald_block" },"S": { "item": "minecraft:stick" }},"result": { "item": "emeraldartistry:emerald_greatsword", "count": 1 }}' > src/main/resources/data/emeraldartistry/recipes/emerald_greatsword.json
         mkdir -p src/main/resources/assets/emeraldartistry/textures/item
         wget -q -O src/main/resources/assets/emeraldartistry/textures/item/emerald_greatsword.png https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/emerald.png
     - name: Build with Gradle
