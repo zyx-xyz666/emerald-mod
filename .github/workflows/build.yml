@@ -22,11 +22,12 @@ jobs:
         cp EmeraldArtistryMod.java src/main/java/com/example/emeraldartistry/
     - name: Hardcore Generate Resources
       run: |
-        # 1. 强行修改 gradle.properties 防止任何残留
+        # 强行修改 gradle.properties 并更改版本号为 1.0.3
         sed -i 's/examplemod/emeraldartistry/g' gradle.properties
         sed -i 's/Example Mod/Emerald Artistry/g' gradle.properties
+        sed -i 's/mod_version=1.0.0/mod_version=1.0.3/g' gradle.properties
         
-        # 2. 暴力生成写死的 mods.toml，彻底切断 Forge 自动替换的抽风可能
+        # 暴力生成 mods.toml，彻底切断 Forge 自动替换的抽风可能
         mkdir -p src/main/resources/META-INF
         cat <<EOF > src/main/resources/META-INF/mods.toml
         modLoader="javafml"
@@ -34,9 +35,9 @@ jobs:
         license="MIT"
         [[mods]]
         modId="emeraldartistry"
-        version="1.0.0"
+        version="1.0.3"
         displayName="Emerald Artistry"
-        description='''绿宝石工艺：翠玉巨剑'''
+        description='''Emerald Craft'''
         [[dependencies.emeraldartistry]]
             modId="forge"
             mandatory=true
@@ -51,7 +52,7 @@ jobs:
             side="BOTH"
         EOF
         
-        # 3. 生成其他所有资源文件
+        # 生成其他所有资源文件
         mkdir -p src/main/resources/assets/emeraldartistry/lang
         cat <<EOF > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
         {
@@ -84,12 +85,11 @@ jobs:
     - name: Build with Gradle
       run: |
         chmod +x gradlew
-        # 注意这里：加上了 clean，强制清空之前的错误缓存！
         ./gradlew clean build
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
         files: build/libs/*.jar
-        tag_name: v1.1.0
+        tag_name: v1.0.3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
