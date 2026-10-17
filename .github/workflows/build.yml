@@ -1,4 +1,6 @@
 name: Build Mod
+permissions:
+  contents: write
 on: [push, workflow_dispatch]
 jobs:
   build:
