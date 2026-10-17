@@ -1,0 +1,215 @@
+package com.example.emeraldartistry;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.CreativeModeTabs;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
+
+@Mod(EmeraldArtistryMod.MOD_ID)
+public class EmeraldArtistryMod {
+
+    public static final String MOD_ID = "emeraldartistry";
+
+    public EmeraldArtistryMod() {
+        IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
+        ModItems.ITEMS.register(modBus);
+        modBus.addListener(this::addCreative);
+    }
+
+    private void addCreative(BuildCreativeModeTabContentsEvent event) {
+        if (event.getTabKey() == CreativeModeTabs.COMBAT) {
+            event.accept(ModItems.EMERALD_GREATSWORD);
+        }
+    }
+
+    public static class ModItems {
+        public static final DeferredRegister<Item> ITEMS =
+            DeferredRegister.create(ForgeRegistries.ITEMS, MOD_ID);
+
+        public static final RegistryObject<Item> EMERALD_GREATSWORD = ITEMS.register(
+            "emerald_greatsword",
+            () -> new EmeraldGreatswordItem(
+                EmeraldGreatswordTier.INSTANCE,
+                11,
+                -2.4F,
+                new Item.Properties().durability(3276)
+            )
+        );
+    }
+
+    public enum EmeraldGreatswordTier implements Tier {
+        INSTANCE;
+
+        @Override public int getUses() { return 3276; }
+        @Override public float getSpeed() { return 8.0F; }
+        @Override public float getAttackDamageBonus() { return 0.0F; }
+        @Override public int getLevel() { return 3; }
+        @Override public int getEnchantmentValue() { return 12; }
+
+        @Override
+        public Ingredient getRepairIngredient() {
+            return Ingredient.of(Items.EMERALD_BLOCK);
+        }
+    }
+
+    public static class EmeraldGreatswordItem extends SwordItem {
+
+        private static final int SKILL_COOLDOWN = 60;
+        private static final float SLASH_DAMAGE = 10.0F;
+        private static final double SLASH_RANGE = 4.5;
+        private static final double SLASH_HALF_ANGLE = 55.0;
+        private static final int HEAL_INTERVAL = 20;
+
+        public EmeraldGreatswordItem(Tier tier, int attackDamage, float attackSpeed, Properties properties) {
+            super(tier, attackDamage, attackSpeed, properties);
+        }
+
+        @Override
+        public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+            ItemStack stack = player.getItemInHand(hand);
+
+            if (player.getCooldowns().isOnCooldown(this)) {
+                return InteractionResultHolder.pass(stack);
+            }
+
+            if (!level.isClientSide) {
+                player.getCooldowns().addCooldown(this, SKILL_COOLDOWN);
+                performCrescentSlash(level, player);
+                stack.hurtAndBreak(1, player, p -> p.broadcastBreakEvent(
+                    hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND));
+            }
+            return InteractionResultHolder.success(stack);
+        }
+
+        private void performCrescentSlash(Level level, Player player) {
+            Vec3 eye = player.getEyePosition();
+            Vec3 look = player.getLookAngle();
+
+            List<LivingEntity> targets = level.getEntitiesOfClass(
+                LivingEntity.class,
+                player.getBoundingBox().inflate(SLASH_RANGE, SLASH_RANGE, SLASH_RANGE),
+                e -> e != player && e.isAlive() && isInCrescentArc(eye, look, e)
+            );
+
+            for (LivingEntity target : targets) {
+                target.hurt(level.damageSources().playerAttack(player), SLASH_DAMAGE);
+                target.knockback(0.4F,
+                    player.getX() - target.getX(),
+                    player.getZ() - target.getZ());
+            }
+
+            spawnSlashParticles(level, player, look);
+        }
+
+        private boolean isInCrescentArc(Vec3 eye, Vec3 look, LivingEntity target) {
+            Vec3 toTarget = target.position()
+                .add(0, target.getBbHeight() / 2.0, 0)
+                .subtract(eye);
+            double distance = toTarget.length();
+            if (distance > SLASH_RANGE || distance < 0.5) return false;
+
+            double dot = look.normalize().dot(toTarget.normalize());
+            double angle = Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, dot))));
+            return angle <= SLASH_HALF_ANGLE;
+        }
+
+        private void spawnSlashParticles(Level level, Player player, Vec3 look) {
+            if (level.isClientSide) return;
+
+            Vec3 horiz = new Vec3(look.x, 0, look.z);
+            if (horiz.lengthSqr() < 1e-4) {
+                horiz = Vec3.directionFromRotation(0, player.getYRot());
+            }
+            horiz = horiz.normalize();
+
+            Vec3 origin = player.getEyePosition().subtract(0, 0.3, 0);
+            int steps = 28;
+
+            for (int i = 0; i < steps; i++) {
+                double t = (double) i / (steps - 1);
+                double dist = 1.0 + t * (SLASH_RANGE - 1.0);
+                double angle = Math.toRadians(-SLASH_HALF_ANGLE + t * SLASH_HALF_ANGLE * 2.0);
+
+                double cos = Math.cos(angle);
+                double sin = Math.sin(angle);
+                double dx = horiz.x * cos - horiz.z * sin;
+                double dz = horiz.x * sin + horiz.z * cos;
+
+                double px = origin.x + dx * dist;
+                double py = origin.y + look.y * dist * 0.4 + (level.random.nextDouble() - 0.5) * 0.4;
+                double pz = origin.z + dz * dist;
+
+                level.addParticle(ParticleTypes.HAPPY_VILLAGER, px, py, pz,
+                    (level.random.nextDouble() - 0.5) * 0.05, 0.02,
+                    (level.random.nextDouble() - 0.5) * 0.05);
+                level.addParticle(ParticleTypes.END_ROD, px, py, pz, 0, 0.01, 0);
+            }
+        }
+
+        @Override
+        public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean selected) {
+            if (!(entity instanceof Player player)) return;
+
+            boolean inMainHand = selected;
+            boolean inOffHand = player.getOffhandItem() == stack;
+            if (!inMainHand && !inOffHand) return;
+
+            if (!level.isClientSide) {
+                if (player.tickCount % HEAL_INTERVAL == 0 && player.getHealth() < player.getMaxHealth()) {
+                    player.heal(1.0F);
+                }
+                return;
+            }
+
+            float ratio = player.getHealth() / player.getMaxHealth();
+            int interval = ratio < 0.3F ? 2 : (ratio < 0.6F ? 4 : 8);
+            if (player.tickCount % interval != 0) return;
+
+            double radius = 0.9;
+            double angle = player.tickCount * 0.15;
+            double x = player.getX() + Math.cos(angle) * radius;
+            double z = player.getZ() + Math.sin(angle) * radius;
+            double y = player.getY() + 0.8 + Math.sin(player.tickCount * 0.1) * 0.3;
+
+            level.addParticle(ParticleTypes.HAPPY_VILLAGER, x, y, z, 0, 0.01, 0);
+            if (ratio < 0.3F) {
+                level.addParticle(ParticleTypes.COMPOSTER, x, y, z, 0, 0.01, 0);
+            }
+        }
+
+        @Override
+        public void appendHoverText(ItemStack stack, @Nullable Level level,
+                                    List<Component> tooltip, TooltipFlag flag) {
+            tooltip.add(Component.translatable("item.emeraldartistry.emerald_greatsword.tooltip.active")
+                .withStyle(ChatFormatting.GREEN));
+            tooltip.add(Component.translatable("item.emeraldartistry.emerald_greatsword.tooltip.passive")
+                .withStyle(ChatFormatting.DARK_GREEN));
+            super.appendHoverText(stack, level, tooltip, flag);
+        }
+    }
+}
