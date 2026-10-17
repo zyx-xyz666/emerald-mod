@@ -22,56 +22,25 @@ jobs:
         cp EmeraldArtistryMod.java src/main/java/com/example/emeraldartistry/
     - name: Generate Resources
       run: |
-        mkdir -p src/main/resources/META-INF
-        cat <<EOF > src/main/resources/META-INF/mods.toml
-        modLoader="javafml"
-        loaderVersion="[47,)"
-        license="MIT"
-        [[mods]]
-        modId="emeraldartistry"
-        version="1.0.0"
-        displayName="Emerald Artistry"
-        description='''绿宝石工艺'''
-        [[dependencies.emeraldartistry]]
-            modId="forge"
-            mandatory=true
-            versionRange="[47,)"
-            ordering="NONE"
-            side="BOTH"
-        [[dependencies.emeraldartistry]]
-            modId="minecraft"
-            mandatory=true
-            versionRange="[1.20.1,1.21)"
-            ordering="NONE"
-            side="BOTH"
-        EOF
+        # 直接修改 gradle.properties，让 Forge 自动生成正确的 mods.toml
+        sed -i 's/mod_id=examplemod/mod_id=emeraldartistry/g' gradle.properties
+        sed -i 's/mod_name=Example Mod/mod_name=Emerald Artistry/g' gradle.properties
+        sed -i 's/mod_description=Here is an example mod/mod_description=绿宝石工艺/g' gradle.properties
+        sed -i 's/archives_base_name=examplemod/archives_base_name=emerald_artistry/g' gradle.properties
+        
+        # 生成语言文件
         mkdir -p src/main/resources/assets/emeraldartistry/lang
-        cat <<EOF > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
-        {
-          "item.emeraldartistry.emerald_greatsword": "翠玉巨剑",
-          "item.emeraldartistry.emerald_greatsword.tooltip.active": "§a右键：翠玉横斩",
-          "item.emeraldartistry.emerald_greatsword.tooltip.passive": "§2被动：生命共鸣"
-        }
-        EOF
+        echo '{"item.emeraldartistry.emerald_greatsword": "翠玉巨剑","item.emeraldartistry.emerald_greatsword.tooltip.active": "§a右键：翠玉横斩","item.emeraldartistry.emerald_greatsword.tooltip.passive": "§2被动：生命共鸣"}' > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
+        
+        # 生成模型文件
         mkdir -p src/main/resources/assets/emeraldartistry/models/item
-        cat <<EOF > src/main/resources/assets/emeraldartistry/models/item/emerald_greatsword.json
-        {
-          "parent": "minecraft:item/handheld",
-          "textures": { "layer0": "emeraldartistry:item/emerald_greatsword" }
-        }
-        EOF
+        echo '{"parent": "minecraft:item/handheld","textures": { "layer0": "emeraldartistry:item/emerald_greatsword" }}' > src/main/resources/assets/emeraldartistry/models/item/emerald_greatsword.json
+        
+        # 生成合成配方
         mkdir -p src/main/resources/data/emeraldartistry/recipes
-        cat <<EOF > src/main/resources/data/emeraldartistry/recipes/emerald_greatsword.json
-        {
-          "type": "minecraft:crafting_shaped",
-          "pattern": [" E ", " E ", " S "],
-          "key": {
-            "E": { "item": "minecraft:emerald_block" },
-            "S": { "item": "minecraft:stick" }
-          },
-          "result": { "item": "emeraldartistry:emerald_greatsword", "count": 1 }
-        }
-        EOF
+        echo '{"type": "minecraft:crafting_shaped","pattern": [" E ", " E ", " S "],"key": {"E": { "item": "minecraft:emerald_block" },"S": { "item": "minecraft:stick" }},"result": { "item": "emeraldartistry:emerald_greatsword", "count": 1 }}' > src/main/resources/data/emeraldartistry/recipes/emerald_greatsword.json
+        
+        # 下载材质占位图
         mkdir -p src/main/resources/assets/emeraldartistry/textures/item
         wget -q -O src/main/resources/assets/emeraldartistry/textures/item/emerald_greatsword.png https://raw.githubusercontent.com/misode/mcmeta/assets/assets/minecraft/textures/item/emerald.png
     - name: Build with Gradle
