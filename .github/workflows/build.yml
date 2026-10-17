@@ -16,35 +16,28 @@ jobs:
       run: |
         wget https://maven.minecraftforge.net/net/minecraftforge/forge/1.20.1-47.2.0/forge-1.20.1-47.2.0-mdk.zip
         unzip -q forge-1.20.1-47.2.0-mdk.zip -d .
-    - name: Setup Source Code
+    - name: Setup Configuration and Code
       run: |
+        # 核心：直接覆盖它的 gradle.properties，让它从源头改名！
+        cat <<EOF > gradle.properties
+        org.gradle.jvmargs=-Xmx3G
+        org.gradle.daemon=false
+        org.gradle.parallel=true
+        org.gradle.caching=true
+        mod_id=emeraldartistry
+        mod_name=Emerald Artistry
+        mod_license=MIT
+        mod_version=1.0.3
+        mod_group_id=com.example.emeraldartistry
+        mod_authors=You
+        mod_description=Emerald Craft
+        EOF
+        
+        # 放置你的 Java 代码
         mkdir -p src/main/java/com/example/emeraldartistry
         cp EmeraldArtistryMod.java src/main/java/com/example/emeraldartistry/
-    - name: Generate Resources
-      run: |
-        mkdir -p src/main/resources/META-INF
-        cat <<EOF > src/main/resources/META-INF/mods.toml
-        modLoader="javafml"
-        loaderVersion="[47,)"
-        license="MIT"
-        [[mods]]
-        modId="emeraldartistry"
-        version="1.0.3"
-        displayName="Emerald Artistry"
-        description='''Emerald Craft'''
-        [[dependencies.emeraldartistry]]
-            modId="forge"
-            mandatory=true
-            versionRange="[47,)"
-            ordering="NONE"
-            side="BOTH"
-        [[dependencies.emeraldartistry]]
-            modId="minecraft"
-            mandatory=true
-            versionRange="[1.20.1,1.21)"
-            ordering="NONE"
-            side="BOTH"
-        EOF
+        
+        # 生成资源文件
         mkdir -p src/main/resources/assets/emeraldartistry/lang
         cat <<EOF > src/main/resources/assets/emeraldartistry/lang/zh_cn.json
         {
@@ -77,38 +70,7 @@ jobs:
     - name: Build with Gradle
       run: |
         chmod +x gradlew
-        ./gradlew clean build
-    - name: FORCE FIX mods.toml in JAR
-      run: |
-        cd build/libs
-        unzip -q emeraldartistry-1.0.3.jar -d temp_jar
-        cat <<EOF > temp_jar/META-INF/mods.toml
-        modLoader="javafml"
-        loaderVersion="[47,)"
-        license="MIT"
-        [[mods]]
-        modId="emeraldartistry"
-        version="1.0.3"
-        displayName="Emerald Artistry"
-        description='''Emerald Craft'''
-        [[dependencies.emeraldartistry]]
-            modId="forge"
-            mandatory=true
-            versionRange="[47,)"
-            ordering="NONE"
-            side="BOTH"
-        [[dependencies.emeraldartistry]]
-            modId="minecraft"
-            mandatory=true
-            versionRange="[1.20.1,1.21)"
-            ordering="NONE"
-            side="BOTH"
-        EOF
-        rm emeraldartistry-1.0.3.jar
-        cd temp_jar
-        zip -r ../emeraldartistry-1.0.3.jar *
-        cd ..
-        rm -rf temp_jar
+        ./gradlew build
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
